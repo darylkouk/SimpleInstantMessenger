@@ -1,21 +1,22 @@
-package IM;
+package Client;
 import java.io.*;
 import java.net.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-public class Server extends JFrame{
-	
+public class Client extends JFrame{
 	private JTextField userText;
 	private JTextArea chatWindow;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
-	private ServerSocket server;
+	private String message = "";
+	private String serverIP;
 	private Socket connection;
 	
-	public Server() {
-		super("Simple Instant Messenger");
+	public Client(String host) {
+		super("Client");
+		serverIP = host;
 		userText = new JTextField();
 		userText.setEditable(false);
 		userText.addActionListener(
@@ -28,90 +29,81 @@ public class Server extends JFrame{
 		//GUI
 		add(userText, BorderLayout.NORTH);
 		chatWindow = new JTextArea();
-		add(new JScrollPane(chatWindow));
+		add(new JScrollPane(chatWindow), BorderLayout.CENTER);
 		setSize(600,300);
 		setVisible(true);
-		
 	}
 	
-	//set up and run the server
+	//connection
 	public void startRunning() {
 		try {
-			server = new ServerSocket(6789, 100);
-			while(true) {
-				try {
-					waitForConnection();
-					setUpStreams();
-					whileChatting();
-				}
-				catch(EOFException eof) {
-					showMessage("\n Server ended the connection! ");
-				}
-				finally {
-					closeAll();
-				}
-			}
+			connectToServer();
+			setUpStreams();
+			whileChatting();
+		}
+		catch(EOFException eof) {
+			showMessage("\n Client terminated connection");
 		}
 		catch(IOException e) {
 			e.printStackTrace();
 		}
+		finally {
+			closeAll();
+		}
 	}
 	
-	
-	//connection
-	private void waitForConnection() throws IOException{
-		showMessage("Waiting for someone to connect......\n");
-		connection = server.accept();
-		showMessage("Now connected to " + connection.getInetAddress().getHostName());
+	//connect to server
+	private void connectToServer() throws IOException{
+		showMessage("Attempting connection....\n");
+		connection = new Socket(InetAddress.getByName(serverIP), 6789);
+		showMessage("Connected to: " + connection.getInetAddress().getHostName());
 	}
 	
-	//get streams to send and receive data
+	//set up streams to send and recieve messages
 	private void setUpStreams() throws IOException{
 		output = new ObjectOutputStream(connection.getOutputStream());
 		output.flush();
 		input = new ObjectInputStream(connection.getInputStream());
-		showMessage("\n Streams are now setup! \n");
+		showMessage("\n streams are now setup");
 	}
 	
-	//Chatting
+	//chatting
 	private void whileChatting() throws IOException{
-		String message = "You are now Connected!";
-		sendMessage(message);
 		ableToType(true);
 		do {
 			try {
 				message = (String) input.readObject();
-				showMessage("\n" + message);
+				showMessage("\n " + message);
 			}
 			catch(ClassNotFoundException cnf) {
 				showMessage("\n cannot interpret the recieving message");
 			}
-		}while(!message.equals("CLIENT - END"));
+		}while(!message.equals("SERVER - END"));
 	}
 	
-	//Close streams and socket
+	//close the streams and sockets
 	private void closeAll() {
-		showMessage("\n Closing connection... \n");
+		showMessage("\n Closing connection....");
 		ableToType(false);
 		try {
 			output.close();
 			input.close();
 			connection.close();
 		}
-		catch(IOException e) {
+		catch(IOException e){
 			e.printStackTrace();
 		}
 	}
 	
-	//send a message to client
+	//send messages to server
 	private void sendMessage(String message) {
 		try {
-			output.writeObject("SERVER - " + message);
+			output.writeObject("CLIENT - " + message);
 			output.flush();
-			showMessage("\nSERVER - " +message);
+			showMessage("\nCLIENT - " + message);
 		}
 		catch(IOException e) {
-			chatWindow.append("\n ERROR");
+			chatWindow.append("\n ERROR:");
 		}
 	}
 	
@@ -127,4 +119,5 @@ public class Server extends JFrame{
 				() -> userText.setEditable(flag)
 		);
 	}
+	
 }
